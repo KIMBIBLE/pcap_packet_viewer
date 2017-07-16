@@ -2,10 +2,29 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/time.h>
+#include <string.h>
 
 
-void printchar(unsigned char c);
+const int ETHERNET_TYPE_IPV4 = 0x0800;
+const int ETHERNET_TYPE_ARP = 0x0806;
+
+typedef struct ethernet_struct{
+	u_char dest_addr_mac[6];
+	u_char src_addr_mac[6];
+	int ethernet_type;
+}ethernet_struct;
+
+
+
+void printchar(const unsigned char c);
 void dumpcode(const unsigned char *buff, int len);
+int deEncapsulateEthernet(const u_char *packet, ethernet_struct *eth);
+void deEncapsulateIpv4();
+void deEncapsulateTcp();
+void deEncapsulateUdp();
+
+void printPacketInfo(const u_char *packet);
+void printEthernetInfo(const ethernet_struct *eth);
 
 int main(int argc, char *argv[])
 	{
@@ -54,6 +73,7 @@ int main(int argc, char *argv[])
 		/* Print its length */
 		printf("Jacked a packet with length of [%d]\n", header->len);
 		dumpcode(packet, header->len);
+		printPacketInfo(packet);
 		packet_number++;
 		puts("");
 	}
@@ -62,7 +82,51 @@ int main(int argc, char *argv[])
 	return(0);
 }
 
-void printchar(unsigned char c)
+
+void printPacketInfo(const u_char *packet)
+{
+	int e_type = 0;
+	ethernet_struct ethernet;
+	e_type = deEncapsulateEthernet(packet, &ethernet);
+
+	if(e_type == ETHERNET_TYPE_IPV4)
+		printEthernetInfo(&ethernet);
+	else if(e_type == ETHERNET_TYPE_ARP)
+		printf("arp packet\n");
+	else{;}
+	
+}
+
+void printEthernetInfo(const ethernet_struct *eth)
+{
+	int i;
+	puts("");
+	printf("[-]	[ethernet_header]\n");
+	printf("[*]	destination\t: ");
+	for(i = 0; i < 6; i++){
+		printf("%02x", eth->dest_addr_mac[i]);
+		if(i < 5)
+			printf(":");
+	}
+	puts("");
+	printf("[*]	source\t\t: ");
+	for(i = 7; i < 13; i++){
+		printf("%02x", eth->dest_addr_mac[i]);
+		if(i < 12)
+			printf(":");
+	}
+	puts("");
+}
+
+int deEncapsulateEthernet(const u_char *packet, ethernet_struct *eth)
+{
+	memcpy(eth->dest_addr_mac, packet, 6);
+	return (int)packet[12] * 0x100 + packet[13];;
+	
+}
+
+
+void printchar(const unsigned char c)
 {
 	if(isprint(c))
 		printf("%c", c);
